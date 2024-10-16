@@ -1,0 +1,9 @@
+[submodule "docs/lib/mic_array"]
+	path = docs/lib/mic_array
+	url = https://github.com/respeaker/mic_array.git
+[submodule "docs/lib/voice-engine"]
+	path = docs/lib/voice-engine
+	url = https://github.com/voice-engine/voice-engine.git
+[submodule "docs/lib/ec"]
+	path = docs/lib/ec
+	url = https://github.com/voice-engine/ec.git
