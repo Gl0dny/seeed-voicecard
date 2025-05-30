@@ -1,64 +1,169 @@
-# seeed-voicecard
+## Flash Legacy 2021-05-07 buster  Image
 
-The drivers for [ReSpeaker Mic Hat](https://www.seeedstudio.com/ReSpeaker-2-Mics-Pi-HAT-p-2874.html), [ReSpeaker 4 Mic Array](https://www.seeedstudio.com/ReSpeaker-4-Mic-Array-for-Raspberry-Pi-p-2941.html), [6-Mics Circular Array Kit](), and [4-Mics Linear Array Kit]() for Raspberry Pi.
-
-### Install seeed-voicecard
-Get the seeed voice card source code and install all linux kernel drivers
+Remove previous ssh key:
 ```bash
-git clone https://github.com/HinTak/seeed-voicecard
+ssh-keygen -R hexapod
+ssh-keygen -R 192.168.0.122
+```
+
+Download image: [2021-05-07-buster](https://files.seeedstudio.com/linux/Raspberry%20Pi%204%20reSpeaker/2021-05-07-raspios-buster-armhf-lite-respeaker.img.xz)
+
+## Remove the Preinstalled Driver
+
+After booting the Pi with the flashed image:
+```bash
 cd seeed-voicecard
-sudo ./install.sh
+sudo ./uninstall.sh
 sudo reboot
 ```
-## ReSpeaker Documentation
 
-Up to date documentation for reSpeaker products can be found in [Seeed Studio Wiki](https://wiki.seeedstudio.com/ReSpeaker/)!
-![](https://files.seeedstudio.com/wiki/ReSpeakerProductGuide/img/Raspberry_Pi_Mic_Array_Solutions.png)
-
-
-### Coherence
-
-Estimate the magnitude squared coherence using Welch’s method.
-![4-mics-linear-array-kit coherence](https://user-images.githubusercontent.com/3901856/37277486-beb1dd96-261f-11e8-898b-84405bfc7cea.png)  
-Note: 'CO 1-2' means the coherence between channel 1 and channel 2.
+## Check Out  the rel-v5.5 Driver Branch ( ODAS Doa Fix )
 
 ```bash
-# How to get the coherence of the captured audio(a.wav for example).
-sudo apt install python-numpy python-scipy python-matplotlib
-python tools/coherence.py a.wav
-
-# Requirement of the input audio file:
-- format: WAV(Microsoft) signed 16-bit PCM
-- channels: >=2
+git clone git@github.com:Gl0dny/hexapod.git
+cd firmware/seeed-voicecard
+git checkout hexapod_odas_doa_fix
+sudo ./install.sh --compat-kernel
+sudo reboot
 ```
 
-### uninstall seeed-voicecard
-If you want to upgrade the driver , you need uninstall the driver first.
+### ( Optional - manual ) Check Out the rel-v5.5 Driver Branch
 
-```
-pi@raspberrypi:~/seeed-voicecard $ sudo ./uninstall.sh 
-...
-------------------------------------------------------
-Please reboot your raspberry pi to apply all settings
-Thank you!
-------------------------------------------------------
+```bash
+git clone https://github.com/respeaker/seeed-voicecard.git
+cd seeed-voicecard
+git checkout rel-v5.5
+sudo ./install.sh --compat-kernel
+sudo reboot
 ```
 
-Enjoy !
+## gcc 8.4 for numpy  
 
-### Technical support
+```bash
+sudo apt update sudo apt upgrade
+sudo apt install build-essential libgmp-dev libmpfr-dev libmpc-dev
+cd ~
+wget https://ftp.gnu.org/gnu/gcc/gcc-8.4.0/gcc-8.4.0.tar.gz
+tar -xf gcc-8.4.0.tar.gz
+cd gcc-8.4.0
+./contrib/download_prerequisites
+cd ..
+mkdir gcc-8.4.0-build
+cd gcc-8.4.0-build
 
-For hardware testing purposes we made a Rasperry Pi OS 5.10.17-v7l+ 32-bit image with reSpeaker drivers pre-installed, which you can download by clicking on [this link](https://files.seeedstudio.com/linux/Raspberry%20Pi%204%20reSpeaker/2021-05-07-raspios-buster-armhf-lite-respeaker.img.xz).
+../gcc-8.4.0/configure \
+    --prefix=/usr/local/gcc-8.4.0 \
+    --enable-languages=c,c++ \
+    --disable-multilib \
+    --program-suffix=-8.4 \
+    --with-arch=armv7-a \
+    --with-fpu=vfp \
+    --with-float=hard \
+    --build=armv7l-linux-gnueabihf \
+    --host=armv7l-linux-gnueabihf
 
-We provide official support for using reSpeaker with the following OS:
-- 32-bit Raspberry Pi OS
-- 64-bit Raspberry Pi OS
+make -j$(nproc)
+sudo make install
+```
 
-And following hardware platforms:
-- Raspberry Pi 3 (all models), Raspberry Pi 4 (all models)
+1. **--with-float=hard**  
+    Explicitly sets hard-float ABI (required for Raspberry Pi's ARMv7)
+2. **--with-arch=armv7-a --with-fpu=vfp**  
+    Targets correct ARM architecture and floating-point unit
+3. **--build and --host Parameters**  
+    Ensures correct platform identification (armv7l-linux-gnueabihf)
+4. **Development Libraries**  
+    libc6-dev-armhf-cross provides missing hard-float headers
 
-Anything beyond the scope of official support is considered to be community supported. Support for other OS/hardware platforms can be added, provided MOQ requirements can be met. 
+### Verification After Install:
 
-If you have a technical problem when using reSpeaker with one of the officially supported platforms/OS, feel free to create an issue on Github. For general questions or suggestions, please use [Seeed forum](https://forum.seeedstudio.com/c/products/respeaker/15). 
+```bash
+/usr/local/gcc-8.4.0/bin/gcc-8.4 -v 2>&1 | grep "Target"
+# Should show: Target: armv7l-linux-gnueabihf
+/usr/local/gcc-8.4.0/bin/gcc-8.4 -dM -E - </dev/null | grep -i float
+# Should contain: #define __ARM_PCS_VFP 1
+```
+
+If you still encounter issues, check your system's header files:
+
+```bash
+ls /usr/include/gnu/stubs-hard.h  # Should exist after libc6-dev install
+/usr/local/gcc-8.4.0/bin/gcc-8.4 --version
+# Expected Output:
+# gcc-8.4.0 (GCC) 8.4.0
+# Copyright (C) 2018 Free Software Foundation, Inc.
+# This is free software; see the source for copying conditions. There is NO
+# warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ls /usr/local/gcc-8.4.0/bin/
+# You should see executables like:
+# - gcc-8.4
+# - g++-8.4
+# - cpp-8.4
+/usr/local/gcc-8.4.0/bin/gcc-8.4 -v 2>&1 | grep "Target"
+# Target: armv7l-linux-gnueabihf
+# (If it says gnueabi instead of gnueabihf, the hard-float configuration failed.)
+
+# use gcc 8.4:
+export PATH=/usr/local/gcc-8.4.0/bin:$PATH
+export CC=gcc-8.4
+export CXX=g++-8.4
+
+# or instead to make permanent:  
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/local/gcc-8.4.0/bin/gcc-8.4 80 \
+    --slave /usr/bin/g++ g++ /usr/local/gcc-8.4.0/bin/g++-8.4 \
+    --slave /usr/bin/gcov gcov /usr/local/gcc-8.4.0/bin/gcov-8.4 # Adding gcov as a slave for completeness
+
+sudo update-alternatives --config gcc
+
+gcc --version
+g++ --version
+
+```
 
 
+## Python 12 - pyenv
+
+
+```bash
+sudo apt update
+sudo apt install -y \
+    build-essential \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libffi-dev \
+    liblzma-dev
+
+curl https://pyenv.run | bash
+
+echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
+echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
+echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+source ~/.bashrc  
+pyenv install --list | grep "3.12"
+pyenv install 3.12
+pyenv versions
+pyenv global 3.12
+pyenv shell 3.12
+python --version
+
+sudo apt install libatlas-base-dev gfortran
+pip install numpy --no-cache-dir --force-reinstall
+
+```
+
+
+## Test audio:
+
+```bash
+arecord -D hw:CARD=seeed8micvoicec,DEV=0 -d 3 -r 48000 -c 8 -f s32_le test.wav
+```
+
+Output file: 2 i 3 channel zmutowane ( powinen byc chyba 7 i 8 ) ale ODAS działa prawidłowo

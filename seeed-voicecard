@@ -21,7 +21,9 @@
 # THE SOFTWARE.
 
 set -x
-#exec 1>/var/log/$(basename $0).log 2>&1
+LOGF=/var/log/$(basename $0).log
+exec 1> >(tee $LOGF)
+exec 2>&1
 
 export PATH=$PATH:/opt/vc/bin
 OVERLAYS=/boot/overlays
@@ -42,9 +44,7 @@ function get_kernel_version() {
     [ -z "$_VER_RUN" ] && {
         ZIMAGE=/boot/kernel.img
         IMG_OFFSET=$(LC_ALL=C grep -abo $'\x1f\x8b\x08\x00' $ZIMAGE | head -n 1 | cut -d ':' -f 1)
-        # 64-bit-only kernel package
-        [ ! -f /boot/kernel.img ] && [ -f /boot/kernel8.img ] && ZIMAGE=/boot/kernel8.img
-        _VER_RUN=$(dd if=$ZIMAGE obs=64K ibs=4 skip=$(( IMG_OFFSET / 4)) 2>/dev/null | zcat | grep -a -m1 "Linux version" | LC_ALL=C sed -e 's/^.*Linux/Linux/' | strings | awk '{ print $3; }')
+        _VER_RUN=$(dd if=$ZIMAGE obs=64K ibs=4 skip=$(( IMG_OFFSET / 4)) | zcat | grep -a -m1 "Linux version" | strings | awk '{ print $3; }')
     }
     echo "$_VER_RUN"
     return 0
@@ -124,7 +124,8 @@ if [ "$overlay" ]; then
     rm /etc/asound.conf
     rm /var/lib/alsa/asound.state
 
-    kernel_ver=$(uname -r) # get_kernel_version)
+: <<\EOF
+    kernel_ver=$(get_kernel_version)
     # echo kernel_ver=$kernel_ver
 
     # TODO: dynamic dtoverlay Bug of v4.19.x
@@ -132,13 +133,14 @@ if [ "$overlay" ]; then
     if [[ "$kernel_ver" =~ ^4\.19.*$ || "$kernel_ver" =~ ^5\.*$ ]]; then
         for i in $RPI_HATS; do
             if [ "$i" == "$overlay" ]; then
-                /bin/true #do_overlay $overlay 0
+                do_overlay $overlay 0
             else
                 echo Uninstall $i ...
-                /bin/true #do_overlay $i 1
+                do_overlay $i 1
             fi
         done
     fi
+EOF
     #make sure the driver loads correctly
     dtoverlay -d $OVERLAYS $overlay || true
 
@@ -161,3 +163,5 @@ alsactl restore
 if aplay -l | grep -q "bcm2835 ALSA"; then
     amixer cset numid=3 1 || true
 fi
+
+exit 0
