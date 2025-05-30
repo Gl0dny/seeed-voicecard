@@ -10,6 +10,19 @@ cd seeed-voicecard
 sudo ./install.sh
 sudo reboot
 ```
+
+### For ODAS DoA Fix:
+
+#### Check Out  the rel-v5.5 Driver Branch ( ODAS Doa Fix )
+
+```bash
+git clone git@github.com:Gl0dny/hexapod.git
+cd firmware/seeed-voicecard
+git checkout hexapod_odas_doa_fix
+sudo ./install.sh --compat-kernel
+sudo reboot
+
+
 ## ReSpeaker Documentation
 
 Up to date documentation for reSpeaker products can be found in [Seeed Studio Wiki](https://wiki.seeedstudio.com/ReSpeaker/)!
