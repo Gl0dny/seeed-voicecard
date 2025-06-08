@@ -1,4 +1,132 @@
-## Flash Legacy 2021-05-07 buster  Image
+## Kernel 5.15.84 - 2023-02-21 Image
+
+Flash: 
+Full OS: [Index of /raspios\_armhf/images/raspios\_armhf-2023-02-22](https://downloads.raspberrypi.com/raspios_armhf/images/raspios_armhf-2023-02-22/)
+Lite: [Index of /raspios\_lite\_armhf/images/raspios\_lite\_armhf-2023-02-22](https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2023-02-22/)
+
+---
+
+```bash
+hexapod@hexapod:~$ uname -r
+```
+:
+5.15.84-v7l+
+
+---
+
+```bash
+ ssh-keygen -t ed25519 -C "krystian.glodek1717@gmail.com"
+ cat ~/.ssh/id_ed25519.pub 
+```
+
+Copy SSH key to GitHub settings
+
+---
+```bash
+sudo apt update && sudo apt install git -y
+git clone git@github.com:Gl0dny/hexapod.git
+cd hexapod/
+git submodule update --init --recursive
+```
+
+---
+Enable UART (No -> then Yes), I2C, SPI
+```bash
+sudo raspi-config
+```
+
+---
+Install ODAS and seeed driver
+```bash
+./lib/odas/install.sh 
+source ~/.bashrc
+cd firmware/seeed-voicecard
+git checkout hexapod_odas_doa_fix
+sudo ./install.sh --compat-kernel
+sudo reboot
+```
+
+---
+
+Confirm the output and block kernel
+```
+hexapod@hexapod:~ $ uname -r
+5.4.51-v7l+
+
+hexapod@hexapod:~ $ arecord -l
+**** List of CAPTURE Hardware Devices ****
+card 3: seeed8micvoicec [seeed-8mic-voicecard], device 0: bcm2835-i2s-ac10x-codec0 ac10x-codec.1-0035-0 [bcm2835-i2s-ac10x-codec0 ac10x-codec.1-0035-0]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+
+# Block kernel
+sudo apt-mark hold raspberrypi-kernel
+apt-mark showhold
+```
+You should see raspberrypi-kernel in the list.
+
+---
+Update system
+```bash
+sudo apt update && sudo apt --fix-broken install -y
+sudo apt update && sudo apt upgrade -y
+```
+
+---
+Install Python 3.12.0
+```bash
+sudo apt update
+sudo apt install -y \
+  build-essential \
+  libssl-dev \
+  libbz2-dev \
+  libreadline-dev \
+  libsqlite3-dev \
+  libncursesw5-dev \
+  libffi-dev \
+  liblzma-dev \
+  zlib1g-dev \
+  libgdbm-dev \
+  libnss3-dev \
+  libssl-dev \
+  libncurses-dev \
+  libreadline-dev
+
+curl https://pyenv.run | bash
+
+echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
+echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
+echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+source ~/.bashrc  
+	pyenv install --list | grep "3.12"
+	pyenv install 3.12.0
+	pyenv versions
+	pyenv global 3.12.0
+	pyenv shell 3.12.0
+	python --version
+```
+
+---
+Create virtual env and install requirements
+```bash
+python -m venv workspace
+source workspace/bin/activate
+cd hexapod
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+## Test audio:
+
+```bash
+arecord -D hw:CARD=seeed8micvoicec,DEV=0 -d 3 -r 48000 -c 8 -f s32_le test.wav
+```
+
+Output file: 2 i 3 channel zmutowane ( powinen byc chyba 7 i 8 ) ale ODAS działa prawidłowo
+
+
+
+## Flash Legacy 2021-05-07 buster Image ( Raw and old way )
 
 Remove previous ssh key:
 ```bash
