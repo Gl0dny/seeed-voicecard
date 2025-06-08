@@ -18,7 +18,7 @@ sudo reboot
 ```bash
 git clone git@github.com:Gl0dny/hexapod.git
 cd firmware/seeed-voicecard
-git checkout hexapod_odas_doa_fix
+git checkout hexapod
 sudo ./install.sh --compat-kernel
 sudo reboot
 
