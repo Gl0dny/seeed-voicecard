@@ -1,25 +1,55 @@
-## Kernel 5.15.84 - 2023-02-21 Image
+## Kernel 6.1.21 - 2023-05-03 Image
 
 Flash: 
-Full OS: [Index of /raspios\_armhf/images/raspios\_armhf-2023-02-22](https://downloads.raspberrypi.com/raspios_armhf/images/raspios_armhf-2023-02-22/)
-Lite: [Index of /raspios\_lite\_armhf/images/raspios\_lite\_armhf-2023-02-22](https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2023-02-22/)
+Full OS: [Index of /raspios\_armhf/images/raspios\_armhf-2023-05-03](https://downloads.raspberrypi.org/raspios_armhf/images/raspios_armhf-2023-05-03/)
+Lite: [Index of /raspios\_lite\_armhf/images/raspios\_lite\_armhf-2023-05-03](https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2023-05-03/)
 
 ---
 
+> [!warning]
+> boot config location change
+> 
+> ```
+> sudo nano /boot/config.txt
+> ```
+> 
+> ->
+> 
+> ```bash
+> sudo nano /boot/firmware/config.txt
+> ```
+> 
+> **Add the 32-bit Kernel Setting**: Scroll to the bottom of the file and add the following line:
+> 
+> ```
+> arm_64bit=0
+> ```
+> reboot:
+> ```bash
+> sudo reboot
+> ```
+
+---
 ```bash
 hexapod@hexapod:~$ uname -r
 ```
 :
-5.15.84-v7l+
+6.1.21-v7l+
 
 ---
+Remove previous ssh key:
+```bash
+ssh-keygen -R hexapod
+ssh-keygen -R 192.168.0.122
+sss hexapod
+```
 
+---
+Copy SSH key to GitHub settings
 ```bash
  ssh-keygen -t ed25519 -C "krystian.glodek1717@gmail.com"
  cat ~/.ssh/id_ed25519.pub 
 ```
-
-Copy SSH key to GitHub settings
 
 ---
 ```bash
@@ -33,15 +63,17 @@ git submodule update --init --recursive
 Enable UART (No -> then Yes), I2C, SPI
 ```bash
 sudo raspi-config
+sudo reboot
 ```
 
 ---
 Install ODAS and seeed driver
 ```bash
-./lib/odas/install.sh 
-source ~/.bashrc
-cd firmware/seeed-voicecard
-git checkout hexapod_odas_doa_fix
+cd ~
+./hexapod/lib/odas/install.sh 
+source ~/.bashrc # ~.zshrc
+cd hexapod/firmware/seeed-voicecard
+git checkout hexapod
 sudo ./install.sh --compat-kernel
 sudo reboot
 ```
@@ -49,7 +81,7 @@ sudo reboot
 ---
 
 Confirm the output and block kernel
-```
+```bash
 hexapod@hexapod:~ $ uname -r
 5.4.51-v7l+
 
@@ -59,14 +91,14 @@ card 3: seeed8micvoicec [seeed-8mic-voicecard], device 0: bcm2835-i2s-ac10x-code
   Subdevices: 1/1
   Subdevice #0: subdevice #0
 
-# Block kernel
-sudo apt-mark hold raspberrypi-kernel
+# Block kernel and headers
+sudo apt-mark hold raspberrypi-kernel # raspberrypi-kernel-headers
 apt-mark showhold
 ```
 You should see raspberrypi-kernel in the list.
 
 ---
-Update system
+Update system 
 ```bash
 sudo apt update && sudo apt --fix-broken install -y
 sudo apt update && sudo apt upgrade -y
@@ -94,10 +126,10 @@ sudo apt install -y \
 
 curl https://pyenv.run | bash
 
-echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-echo 'eval "$(pyenv init -)"' >> ~/.bashrc
-source ~/.bashrc  
+echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
+echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
+echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+source ~/.zshrc  
 	pyenv install --list | grep "3.12"
 	pyenv install 3.12.0
 	pyenv versions
@@ -110,7 +142,10 @@ source ~/.bashrc
 Create virtual env and install requirements
 ```bash
 python -m venv workspace
-source workspace/bin/activate
+echo "alias activate='source ~/workspace/bin/activate'" >> ~/.bashrc
+echo "alias activate='source ~/workspace/bin/activate'" >> ~/.zshrc
+source ~/.zshrc
+activate
 cd hexapod
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -124,15 +159,107 @@ arecord -D hw:CARD=seeed8micvoicec,DEV=0 -d 3 -r 48000 -c 8 -f s32_le test.wav
 
 Output file: 2 i 3 channel zmutowane ( powinen byc chyba 7 i 8 ) ale ODAS działa prawidłowo
 
+#### Zsh setup
+
+```bash
+sudo apt update
+sudo apt install -y \
+zsh \
+bat \
+fzf \
+unzip \
+p7zip-full \
+bzip2 \
+gzip \
+ripgrep \
+htop \
+procps \
+tree \
+zoxide \
+stow
+
+sh -c "$(curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+
+git clone https://github.com/romkatv/powerlevel10k.git $ZSH_CUSTOM/themes/powerlevel10k
+
+git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+
+git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+
+git clone https://github.com/zsh-users/zsh-completions.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-completions
+
+git clone git@github.com:Gl0dny/dotfiles.git
+cd dotfiles/
+git checkout hexapod
+rm ~/.zshrc 
+stow -R --adopt zsh
+
+curl https://sh.rustup.rs -sSf | sh
+source $HOME/.cargo/env
+rustc --version
+cargo --version
+
+cargo install eza
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+eza --version
+
+git clone https://github.com/eth-p/bat-extras.git
+cd bat-extras
+./build.sh
+sudo cp bin/* /usr/local/bin/
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+rm -rf bat-extras 
+source ~/.zshrc
+
+error:
+/home/hexapod/.oh-my-zsh/plugins/emoji/emoji-char-definitions.zsh:25: character not in range (anon):29: character not in range
+:
+
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+sudo sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+sudo locale-gen
+sudo update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
+source ~/.zshrc
+```
+
+#### Install LLVM 15 Manually on 32-bit RPi
+
+```bash
+sudo apt update
+sudo apt install build-essential cmake ninja-build git python3-pip \
+  libncurses5-dev libxml2-dev libedit-dev zlib1g-dev
+```
+
+```bash
+git clone https://github.com/llvm/llvm-project.git
+cd llvm-project
+git checkout llvmorg-15.0.7
+```
+
+```bash
+mkdir build && cd build
+cmake -G Ninja ../llvm \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DLLVM_TARGETS_TO_BUILD="ARM" \
+  -DLLVM_ENABLE_PROJECTS="clang" \
+  -DCMAKE_INSTALL_PREFIX=/usr/local
+```
+
+```bash
+ninja -j$(nproc)
+sudo ninja install
+```
+
+```bash
+export LLVM_CONFIG=/usr/local/bin/llvm-config
+pip install llvmlite numba resampy
+```
 
 
 ## Flash Legacy 2021-05-07 buster Image ( Raw and old way )
-
-Remove previous ssh key:
-```bash
-ssh-keygen -R hexapod
-ssh-keygen -R 192.168.0.122
-```
 
 Download image: [2021-05-07-buster](https://files.seeedstudio.com/linux/Raspberry%20Pi%204%20reSpeaker/2021-05-07-raspios-buster-armhf-lite-respeaker.img.xz)
 
